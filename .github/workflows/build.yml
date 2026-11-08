@@ -17,20 +17,30 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Configure (vcpkg, static SDL2)
+
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure (Ninja, vcpkg, static SDL2)
         shell: pwsh
         run: |
           $env:VCPKG_ROOT = $env:VCPKG_INSTALLATION_ROOT
-          cmake --preset windows-vcpkg
+          cmake --preset windows-ci
+
       - name: Build
-        run: cmake --build --preset release
+        run: cmake --build --preset windows-ci
+
       - name: Package
         shell: pwsh
-        run: ./scripts/package.ps1 -BuildDir build/Release -OutDir dist
+        run: ./scripts/package.ps1 -BuildDir build-ci -OutDir dist
+
       - uses: actions/upload-artifact@v4
         with:
           name: radiantfighter-windows-x64
           path: dist/*.zip
+
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2

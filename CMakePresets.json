@@ -13,16 +13,44 @@
       }
     },
     {
+      "name": "windows-ci",
+      "displayName": "Windows x64 (Ninja + vcpkg, CI)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-ci",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static"
+      }
+    },
+    {
       "name": "linux",
       "displayName": "Linux / macOS (system SDL2)",
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "release", "configurePreset": "windows-vcpkg", "configuration": "Release" },
-    { "name": "debug", "configurePreset": "windows-vcpkg", "configuration": "Debug" },
-    { "name": "linux", "configurePreset": "linux" }
+    {
+      "name": "release",
+      "configurePreset": "windows-vcpkg",
+      "configuration": "Release"
+    },
+    {
+      "name": "debug",
+      "configurePreset": "windows-vcpkg",
+      "configuration": "Debug"
+    },
+    {
+      "name": "windows-ci",
+      "configurePreset": "windows-ci"
+    },
+    {
+      "name": "linux",
+      "configurePreset": "linux"
+    }
   ]
 }
