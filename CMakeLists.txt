@@ -1,0 +1,61 @@
+cmake_minimum_required(VERSION 3.20)
+# RadiantFighter version: set only here (window title, Windows file properties); history in CHANGELOG.md.
+project(RadiantFighter VERSION 0.6.2 LANGUAGES CXX)
+set(RF_VERSION_SHORT "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
+configure_file(src/version/version.h.in ${CMAKE_BINARY_DIR}/generated/version.h @ONLY)
+
+if(VCPKG_TARGET_TRIPLET MATCHES "static")
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(MSVC)
+  add_compile_options(/utf-8)
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+endif()
+
+option(RF_GAME "Build the game (needs SDL2)" ON)
+option(RF_BUILD_TOOLS "Build the developer tools (rfrun)" OFF)
+option(RF_LINUX_PORTABLE "Linux: build an executable for other distributions" OFF)
+
+# the common Amiga core (copy of Framework/core: 68000 CPU, OCS/AGA chipset, formats, SDL helpers)
+if(RF_GAME)
+  # found here too, so that SDL2::SDL2main is visible to the game target
+  find_package(SDL2 CONFIG REQUIRED)
+endif()
+set(AMIGACORE_TESTS OFF CACHE BOOL "" FORCE)
+set(AMIGACORE_SDL ${RF_GAME} CACHE BOOL "" FORCE)
+add_subdirectory(core)
+
+# Shadow Fighter: disk images, loader, data formats
+add_library(rfgame STATIC src/rf/disks.cpp src/rf/loader.cpp src/rf/cdaudio.cpp src/formats/sf_formats.cpp)
+target_include_directories(rfgame PUBLIC src ${CMAKE_BINARY_DIR}/generated)
+target_link_libraries(rfgame PUBLIC amigacore)
+
+if(RF_GAME)
+  set(RF_SOURCES src/app/main.cpp)
+  if(WIN32)
+    configure_file(src/version/radiantfighter.rc.in ${CMAKE_BINARY_DIR}/generated/radiantfighter.rc @ONLY)
+    list(APPEND RF_SOURCES ${CMAKE_BINARY_DIR}/generated/radiantfighter.rc)
+  endif()
+  add_executable(radiantfighter WIN32 ${RF_SOURCES})
+  target_link_libraries(radiantfighter PRIVATE rfgame amigacore_sdl $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>)
+  # Linux release builds: C++ runtime linked in, no dependency on the newest glibc; only SDL2 is needed
+  if(RF_LINUX_PORTABLE AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_sources(radiantfighter PRIVATE core/src/platform/glibc_compat.cpp)
+    target_link_options(radiantfighter PRIVATE -static-libstdc++)
+    set_target_properties(radiantfighter PROPERTIES SKIP_BUILD_RPATH ON)
+  endif()
+endif()
+
+if(RF_BUILD_TOOLS)
+  add_executable(rfrun src/tools/rfrun.cpp)
+  target_link_libraries(rfrun PRIVATE rfgame)
+endif()
+
+if(RF_BUILD_TOOLS)
+  add_executable(rf_formats src/tools/rf_formats.cpp)
+  target_link_libraries(rf_formats PRIVATE rfgame)
+  add_executable(agatest src/tools/agatest.cpp)
+  target_link_libraries(agatest PRIVATE amigacore)
+endif()

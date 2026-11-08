@@ -1,0 +1,30 @@
+# build output
+/build/
+/build-*/
+/out/
+/dist/
+.vs/
+CMakeUserPresets.json
+
+# the original game files and anything made from them: never commit them
+Disk.1
+Disk.2
+Disk.3
+Disk.4
+*.chd
+*.iso
+*.wav
+*.mod
+*.adf
+*.ADF
+*.hdf
+*.rom
+/ShadowFighterAGA/
+/data/
+
+# files written by the program
+radiantfighter.ini
+radiantfighter_*.png
+RadiantFighter.highs
+/audio/
+/_to_delete/

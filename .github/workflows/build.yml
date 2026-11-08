@@ -1,0 +1,89 @@
+# Builds RadiantFighter on Windows, Linux and macOS at every push and pull request.
+# On a version tag (v0.8.0, ...) the portable zips are attached to a GitHub release.
+name: build
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (vcpkg, static SDL2)
+        shell: pwsh
+        run: |
+          $env:VCPKG_ROOT = $env:VCPKG_INSTALLATION_ROOT
+          cmake --preset windows-vcpkg
+      - name: Build
+        run: cmake --build --preset release
+      - name: Package
+        shell: pwsh
+        run: ./scripts/package.ps1 -BuildDir build/Release -OutDir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: radiantfighter-windows-x64
+          path: dist/*.zip
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
+      - name: Build
+        run: |
+          cmake --preset linux -DRF_LINUX_PORTABLE=ON
+          cmake --build build -j
+      - name: Package
+        run: |
+          mkdir -p dist/radiantfighter
+          strip -o dist/radiantfighter/radiantfighter build/radiantfighter
+          cp README.md LICENSE CHANGELOG.md dist/radiantfighter/
+          cd dist && tar czf radiantfighter-${GITHUB_REF_NAME//\//-}-linux-x64.tar.gz radiantfighter
+      - uses: actions/upload-artifact@v4
+        with:
+          name: radiantfighter-linux-x64
+          path: dist/*.tar.gz
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.tar.gz
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: brew install sdl2
+      - name: Build
+        run: |
+          cmake --preset linux
+          cmake --build build -j
+      - name: Package
+        run: |
+          mkdir -p dist/radiantfighter
+          cp build/radiantfighter README.md LICENSE CHANGELOG.md dist/radiantfighter/
+          cd dist && zip -r radiantfighter-${GITHUB_REF_NAME//\//-}-macos.zip radiantfighter
+      - uses: actions/upload-artifact@v4
+        with:
+          name: radiantfighter-macos
+          path: dist/*.zip
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
