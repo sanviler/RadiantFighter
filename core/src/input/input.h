@@ -44,6 +44,9 @@ public:
     bool isJoystickKey(SDL_Scancode sc) const;
 
     // next / previous device for a port (menu)
+    // two-player games: player 1's port gets the first controller (else the keyboard), the other port the
+    // second controller (else the keyboard when player 1 has a controller, else nothing)
+    void setDefaultsTwoPlayers(int player1Port);
     void cycle(int port, int dir);
     PortLabel label(int port) const;
 

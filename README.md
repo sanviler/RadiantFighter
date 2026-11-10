@@ -27,14 +27,19 @@ written in C++ (68000 CPU and AGA chipset), with sharp integer scaling, configur
   are unpacked in C++: the Gremlin logo appears after about two seconds.
 - **Sharp picture.** Full-screen pictures (title, menus, selection) are shown in 4:3 with the
   overscan area the game uses; the fight is shown as its exact display window.
-  Every picture is scaled by the largest integer factor that fits the window (half the desktop at start,
-  resizable) or the desktop in fullscreen, with black borders.
+  The window opens at half the desktop and can be resized.
+- **Picture modes** (options menu, PICTURE): PIXEL PERFECT = the largest integer scale that fits the window or
+  the desktop, black borders, with the CRT-Pixie filter computed exactly at that scale; FILL = the full height of
+  the window or screen at any scale, with sharp pixels (sharp bilinear: no uneven pixels) or a CRT filter made
+  for non-integer scales (every scanline gets the same light). Both start with their CRT filter on; F5 switches
+  it off and on. Windows display scaling (125%, 150%) no longer blurs or shrinks the picture.
 - **CD or Amiga music, your choice.** MUSIC: CD plays the audio tracks of the CD32 version (WAV files you make
   from your own disc, see below), as on the CD32; Paula stays free, so every fight has the stage (background)
   sounds and the sound effects at the same time. MUSIC: PAULA is the original Amiga music and sound, untouched.
   Never both at once. Separate volumes for the music and for the sound effects / stage sounds.
 - **Move list** in the options menu: the special moves of every fighter.
 - **CRT-Pixie filter** (F5): scanlines, aperture mask, glow, vignette, in the style of the crt-pixie shader.
+- **Skippable intro**: Space, Return, Right Ctrl or fire (A) on a controller go straight to the title screen.
 - **High scores kept** in `RadiantFighter.highs` next to the executable (same format as the WHDLoad install:
   a `ShadowFighter.highs` from WHDLoad is read too).
 - The manual protection is answered for you.
@@ -77,12 +82,13 @@ The intro keeps its Amiga music in both modes (the CD32 intro has no CD track).
 | Keyboard joystick | numeric keypad 8 4 6 2 (7 9 1 3 diagonals), Right Ctrl = fire |
 | Other keys | the Amiga keyboard (as in the original: for example P pauses the fight) |
 | Escape | options menu (the game is paused) |
-| F5 | CRT-Pixie on / off |
+| F5 | CRT filter on / off |
+| Space / Return / Right Ctrl / A | skip the intro |
 | F11 | window / fullscreen |
 | F12 | screenshot (PNG next to the executable) |
 | Game controller | stick or d-pad = joystick, A = fire, Start = options menu |
 
-The options menu sets: fullscreen, CRT-Pixie, music (CD or Paula), music volume, effects volume, the device in
+The options menu sets: fullscreen, the picture (pixel perfect or fill), the CRT filter, music (CD or Paula), music volume, effects volume, the device in
 each control port (nothing, keyboard, mouse or any joystick); it shows the move list (left / right: fighter) and
 can restart the game or quit. The settings are kept in `radiantfighter.ini`.
 With MUSIC: CD the SOUND item of the game's own options menu has no effect (stage sounds, effects and CD music

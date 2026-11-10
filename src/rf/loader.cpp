@@ -27,6 +27,7 @@ namespace fs = std::filesystem;
 namespace amiga {
 
 namespace {
+bool gIntro = false;           // the intro ($108000) is running
 constexpr uint32_t kMainBase = 0x80500, kMainEntry = 0x80508, kMainDiskOffset = 0x73C00, kMainPacked = 0x169E9;
 constexpr uint32_t kDiskWord = 0x8CEB0, kCdFlag = 0x8C768;
 // high scores: 360 bytes, given to the selection module at $8C912 and kept by it at $11B33A; saved when the
@@ -168,7 +169,10 @@ void Machine::installGameHooks(uint32_t) {
     for (uint32_t a : {0xAB902u, 0xAB936u, 0x119D52u, 0x117F48u, 0x108F64u})
         addHook(a, [](Machine& m) { m.setAudioGroup(0); m.cpu().execute(); });
     // intro skip (option): from the intro loading straight to the code after "jsr $108000"
+    gIntro = false;
     if (custom1_ & rf::kSkipIntro) addHook(0x805CA, [](Machine& m) { m.jumpTo(0x805F8); });
+    else addHook(0x805CA, [](Machine& m) { gIntro = true; m.cpu().execute(); });
+    addHook(0x805F8, [](Machine& m) { gIntro = false; m.cpu().execute(); });
     // the RNC unpacker ($8192C: a0 packed data with "RNC\1" or "DSKn", a1 destination, all registers kept) runs
     // in C++: the 68000 version took seconds for the big blocks (the black screen before the Gremlin logo)
     addHook(0x8192C, [](Machine& m) {
@@ -198,3 +202,7 @@ void Machine::installGameHooks(uint32_t) {
 }
 
 } // namespace amiga
+
+namespace rf {
+bool introRunning() { return amiga::gIntro; }
+} // namespace rf

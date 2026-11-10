@@ -4,14 +4,18 @@
 //
 // Keys:
 //   F5                        CRT filter on / off
+//   Space / Return / fire     during the intro: skip it (straight to the title screen)
 //   control ports             set in the options menu: nothing, keyboard, mouse or any joystick for each port
 //                             (player 1 plays on port 2, as on the Amiga)
 //   keyboard joystick         numeric keypad 8/4/6/2 (7/9/1/3 diagonals), Right Ctrl = fire
-//   Escape                    options menu (the game is paused): fullscreen, CRT-Pixie, music (CD or Paula),
+//   Escape                    options menu (the game is paused): fullscreen, picture (pixel perfect or fill),
+//                             CRT filter, music (CD or Paula),
 //                             music and effects volume, move list, ports, quit
 //   F11                       window / fullscreen
 //   F12                       screenshot (PNG next to the executable)
 //   game controller           stick or d-pad = joystick, A = fire, Start = options menu
+// Picture: PIXEL PERFECT = largest integer scale (CRT-Pixie filter), FILL = full height at any scale (sharp
+//   pixels or the CRT filter for non-integer scales). Both start with the CRT filter on.
 // Options: --data <folder>  --fullscreen  --test-frames N (run N frames and quit); for tests --custom1 N (1 skip intro)
 #include "amiga/machine.h"
 #include "ui/options_panel.h"
@@ -61,8 +65,9 @@ std::string portText(const lm::PortLabel& l) {
         default: return "NOTHING";
     }
 }
-// the move list: one fighter per page, over the options menu
-void drawMoves(std::vector<dm::Rgb>& px, int w, int h, int page) {
+// the move list: one fighter per page, shown instead of the options menu; its own picture (w x h), at least
+// as large as the options panel
+std::vector<dm::Rgb> renderMoves(int page, int& pw, int& ph) {
     const auto& list = rf::moveList();
     const rf::FighterMoves& f = list[size_t(page)];
     int nameW = 0, inW = 0;
@@ -70,10 +75,11 @@ void drawMoves(std::vector<dm::Rgb>& px, int w, int h, int page) {
     const std::string title = "MOVE LIST", head = "< " + std::string(f.fighter) + " >",
                       count = std::to_string(page + 1) + "/" + std::to_string(list.size()),
                       foot = "LEFT/RIGHT: FIGHTER   ESC: BACK", credit = "FROM THE MOVE LIST BY DRACS (1994)";
-    const int pw = std::max({nameW + inW + 36, dm::OptionsPanel::textWidth(foot) + 16, dm::OptionsPanel::textWidth(credit) + 16});
-    const int ph = 48 + int(f.moves.size()) * 11 + 30;
-    const int x0 = (w - pw) / 2, y0 = (h - ph) / 2;
+    pw = std::max({dm::OptionsPanel::kWidth, nameW + inW + 36, dm::OptionsPanel::textWidth(foot) + 16, dm::OptionsPanel::textWidth(credit) + 16});
+    ph = std::max(dm::OptionsPanel::kHeight, 48 + int(f.moves.size()) * 11 + 30);
+    const int w = pw, h = ph, x0 = 0, y0 = 0;
     const dm::Rgb border{200, 120, 40}, back{16, 12, 24}, normal{200, 200, 210}, hi{255, 220, 90}, dim{140, 140, 150}, name{130, 150, 255};
+    std::vector<dm::Rgb> px(size_t(w) * size_t(h), back);
     dm::OptionsPanel::box(px, w, h, x0, y0, pw, ph, border);
     dm::OptionsPanel::box(px, w, h, x0 + 2, y0 + 2, pw - 4, ph - 4, back);
     dm::OptionsPanel::text(px, w, h, x0 + (pw - dm::OptionsPanel::textWidth(title)) / 2, y0 + 8, title, hi);
@@ -86,6 +92,7 @@ void drawMoves(std::vector<dm::Rgb>& px, int w, int h, int page) {
     }
     dm::OptionsPanel::text(px, w, h, x0 + (pw - dm::OptionsPanel::textWidth(credit)) / 2, y0 + ph - 25, credit, dim);
     dm::OptionsPanel::text(px, w, h, x0 + (pw - dm::OptionsPanel::textWidth(foot)) / 2, y0 + ph - 13, foot, dim);
+    return px;
 }
 } // namespace
 
@@ -104,6 +111,7 @@ int main(int argc, char** argv) {
     }
     const bool testing = testFrames >= 0;
 
+    dm::Video::hints();                              // before SDL_Init: real pixels with Windows display scaling
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) { std::fprintf(stderr, "SDL_Init: %s\n", SDL_GetError()); return 1; }
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) std::fprintf(stderr, "no audio: %s\n", SDL_GetError());
     if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0) std::fprintf(stderr, "no game controllers: %s\n", SDL_GetError());
@@ -148,7 +156,8 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "%s: %s\n", msg.c_str(), disks.folder().c_str());
 
     // settings
-    bool crtOn = settings.get("crt", "off") == "on";
+    bool crtOn = settings.get("crt", "on") == "on";
+    bool fillMode = settings.get("picture", "pixel") == "fill";
     // CD audio: WAV files track02.wav ... track13.wav in the "audio" folder next to the executable (created here)
     auto& cd = rf::CdAudio::instance();
     {
@@ -171,14 +180,16 @@ int main(int argc, char** argv) {
     }
 
     dm::Video video;
-    const std::string title = std::string("RadiantFighter ver. ") + RF_VERSION_STRING;
+    const std::string title = std::string("RadiantFighter ver. ") + RF_VERSION_STRING + " (Shadow Fighter)";
     if (!video.init(title.c_str(), kViewW, kViewH, 3)) { fail(std::string("video: ") + SDL_GetError()); SDL_Quit(); return 1; }
     bool isFull = false;
     if (fullscreen) { video.toggleFullscreen(); isFull = true; }
     video.setCrt(crtOn);
+    video.setMode(fillMode ? dm::Video::Mode::Fill : dm::Video::Mode::PixelPerfect);
     auto saveSettings = [&] {
         if (testing) return;
         settings.set("crt", crtOn ? "on" : "off");
+        settings.set("picture", fillMode ? "fill" : "pixel");
         settings.set("music", cdMusic ? "cd" : "paula");
         settings.set("music_volume", std::to_string(musicVol));
         settings.set("effects_volume", std::to_string(effectsVol));
@@ -194,7 +205,7 @@ int main(int argc, char** argv) {
         cd.setGain(musicVol * 256 / 100);
         if (mp) { mp->setGroupGain(1, musicVol * 256 / 100); mp->setGroupGain(0, effectsVol * 256 / 100); }
     };
-    bool running = true, shotRequested = false, resetRequested = false;
+    bool running = true, shotRequested = false, resetRequested = false, skipNow = false;
     std::string err;
     auto start = [&](uint32_t c1) {
         mp = std::make_unique<amiga::Machine>();
@@ -212,7 +223,7 @@ int main(int argc, char** argv) {
     const uint32_t bytesPerFrame = uint32_t(have.freq ? have.freq : 44100) / 50 * 4;
 
     dm::OptionsPanel menu;
-    enum { ItFull, ItCrt, ItMusic, ItMusicVol, ItFxVol, ItMoves, ItPort1, ItPort2, ItReset, ItQuit, ItBack, ItCount };
+    enum { ItFull, ItPicture, ItCrt, ItMusic, ItMusicVol, ItFxVol, ItMoves, ItPort1, ItPort2, ItReset, ItQuit, ItBack, ItCount };
     bool movesOpen = false;          // the move list (a page per fighter) over the menu
     int movesPage = 0;
     const int movesCount = int(rf::moveList().size());
@@ -223,6 +234,8 @@ int main(int argc, char** argv) {
     auto activate = [&](int item, int dir) {        // dir 0 = Enter, -1 / +1 = left / right
         switch (item) {
             case ItFull: video.toggleFullscreen(); isFull = !isFull; break;
+            case ItPicture: fillMode = !fillMode; crtOn = true; video.setCrt(true);      // each mode starts with its CRT filter
+                video.setMode(fillMode ? dm::Video::Mode::Fill : dm::Video::Mode::PixelPerfect); break;
             case ItCrt: crtOn = !crtOn; video.setCrt(crtOn); break;
             case ItMusic: if (cd.available()) { cdMusic = !cdMusic; cd.setEnabled(cdMusic); } break;
             case ItMusicVol: musicVol = std::clamp(musicVol + (dir ? dir : 1) * 10, 0, 100); applyVolumes(); break;
@@ -240,6 +253,8 @@ int main(int argc, char** argv) {
     uint64_t nextTick = SDL_GetPerformanceCounter();
     const uint64_t perFrame = SDL_GetPerformanceFrequency() / 50;
     int shotN = 0;
+    uint64_t fpsStart = SDL_GetTicks64();
+    int fpsFrames = 0;
     while (running) {
         SDL_Event ev;
         while (SDL_PollEvent(&ev)) {
@@ -249,6 +264,7 @@ int main(int argc, char** argv) {
                 case SDL_CONTROLLERBUTTONDOWN: {
                     const int b = ev.cbutton.button;
                     if (b == SDL_CONTROLLER_BUTTON_START) { menu.open = !menu.open; menu.focus = 0; movesOpen = false; releaseKeys(); }
+                    else if (!menu.open && rf::introRunning() && b == SDL_CONTROLLER_BUTTON_A) skipNow = true;
                     else if (menu.open && movesOpen) {
                         if (b == SDL_CONTROLLER_BUTTON_DPAD_LEFT || b == SDL_CONTROLLER_BUTTON_DPAD_UP) movesPage = (movesPage + movesCount - 1) % movesCount;
                         else if (b == SDL_CONTROLLER_BUTTON_DPAD_RIGHT || b == SDL_CONTROLLER_BUTTON_DPAD_DOWN || b == SDL_CONTROLLER_BUTTON_A) movesPage = (movesPage + 1) % movesCount;
@@ -289,6 +305,8 @@ int main(int argc, char** argv) {
                         break;
                     }
                     if (dn && sc == SDL_SCANCODE_ESCAPE) { menu.open = true; menu.focus = 0; releaseKeys(); break; }
+                    if (dn && rf::introRunning() && (sc == SDL_SCANCODE_SPACE || sc == SDL_SCANCODE_RETURN ||
+                        sc == SDL_SCANCODE_KP_ENTER || sc == SDL_SCANCODE_RCTRL)) { skipNow = true; break; }
                     if (ports.isJoystickKey(sc) || ev.key.repeat) break;
                     const auto& km = lm::amigaKeymap();
                     if (auto it = km.find(sc); it != km.end() && amigaKeyDown[it->second] != dn) {
@@ -299,6 +317,13 @@ int main(int argc, char** argv) {
                 }
                 default: break;
             }
+        }
+        if (skipNow) {                               // the intro is skipped: the game starts again at the title screen
+            skipNow = false;
+            releaseKeys();
+            cd.stop();
+            if (!start(custom1 | rf::kSkipIntro)) { fail(err); break; }
+            if (audio) { mp->setAudioRate(have.freq); SDL_ClearQueuedAudio(audio); }
         }
         if (resetRequested) {
             resetRequested = false;
@@ -349,7 +374,8 @@ int main(int argc, char** argv) {
             auto bar = [](int v) { return std::string(size_t(v / 10), '#') + std::string(size_t(10 - v / 10), '.') + " " + std::to_string(v) + "%"; };
             const std::vector<dm::MenuItem> items = {
                 {"SCREEN", isFull ? "FULL" : "WINDOW"},
-                {"CRT-PIXIE (F5)", crtOn ? "ON" : "OFF"},
+                {"PICTURE", fillMode ? "FILL" : "PIXEL PERFECT"},
+                {"CRT FILTER (F5)", crtOn ? "ON" : "OFF"},
                 {"MUSIC", !cd.available() ? "PAULA (NO CD TRACKS)" : (cdMusic ? "CD" : "PAULA")},
                 {"MUSIC VOLUME", bar(musicVol)},
                 {"EFFECTS VOLUME", bar(effectsVol)},
@@ -362,12 +388,30 @@ int main(int argc, char** argv) {
             else if (menu.focus == ItMusic) menu.footer = cd.available() ? "CD: CD32 TRACKS   PAULA: ORIGINAL AMIGA MUSIC" : "CD TRACKS: AUDIO FOLDER, TRACK02.WAV ... TRACK13.WAV";
             else if (menu.focus == ItFxVol) menu.footer = "SOUND EFFECTS AND STAGE SOUNDS";
             for (auto& ch : menu.footer) ch = char(std::toupper(static_cast<unsigned char>(ch)));
+            // the panels are drawn over the filtered picture (never through the CRT filter), at their own scale
             const auto keep = video.frame();
-            menu.draw(video.frame(), video.width(), video.height(), items);
-            if (movesOpen) drawMoves(video.frame(), video.width(), video.height(), movesPage);
+            dm::OptionsPanel::darken(video.frame());
+            int ow = 0, oh = 0;
+            video.outputSize(ow, oh);
+            if (movesOpen) {
+                int mw = 0, mh = 0;
+                const std::vector<dm::Rgb> mp = renderMoves(movesPage, mw, mh);
+                video.setOverlay(mp, mw, mh, dm::OptionsPanel::scaleFor(ow, oh, mw, mh));
+            } else {
+                menu.render(items);
+                video.setOverlay(menu.pixels(), menu.width(), menu.height(), dm::OptionsPanel::scaleFor(ow, oh, menu.width(), menu.height()));
+            }
             video.present();
+            video.clearOverlay();
             video.frame() = keep;
         } else video.present();
+        ++fpsFrames;                                 // window title: name, version and the frames shown per second
+        if (const uint64_t now = SDL_GetTicks64(); now - fpsStart >= 1000) {
+            const int fps = int((fpsFrames * 1000 + (now - fpsStart) / 2) / (now - fpsStart));
+            video.setTitle(title + " - " + std::to_string(fps) + " fps");
+            fpsStart = now;
+            fpsFrames = 0;
+        }
         if (testing && long(m.frameCount()) >= testFrames) running = false;
     }
     saveSettings();

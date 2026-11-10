@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.0.0
+
+- Options panel: the same fixed size in every port (256 x 200 pixels of its own, at an integer scale of its own),
+  drawn over the picture and never through the CRT filter. Long values and footers (for example the name of a
+  controller) are split on more lines instead of widening the panel; only if the text needs more rows the panel
+  grows downwards.
+- Faster picture filters: the worker threads are made once instead of every frame, the glow is computed in
+  parallel, and the CRT filter of FILL computes the beams on the source columns (about half the time before,
+  same look); the beam table of FILL is kept per picture.
+
+## 0.7.0
+
+- Picture modes: PIXEL PERFECT (largest integer scale, CRT-Pixie) and FILL (full height at any scale: sharp
+  bilinear pixels or a CRT filter for non-integer scales, with the same light on every scanline). Both start with
+  the CRT filter on (F5 switches it). Settings `picture` and `crt` in `radiantfighter.ini`. At 1080p the
+  full-screen pictures (272 lines) were at 3x (76% of the height): FILL uses the whole height.
+- Windows with display scaling (125%, 150%): the picture uses the real pixels of the screen (before, Windows
+  stretched a smaller window: smaller and blurred picture).
+- The intro can be skipped with Space, Return, Right Ctrl or A on a controller.
+- Window title: name, version, game and frames per second.
+
 ## 0.6.2
 
 - Music: CD or Paula (options menu), never both: with CD the menus start the CD track at once (no more seconds

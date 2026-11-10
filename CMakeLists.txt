@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 # RadiantFighter version: set only here (window title, Windows file properties); history in CHANGELOG.md.
-project(RadiantFighter VERSION 0.6.2 LANGUAGES CXX)
+project(RadiantFighter VERSION 1.0.0 LANGUAGES CXX)
 set(RF_VERSION_SHORT "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
 configure_file(src/version/version.h.in ${CMAKE_BINARY_DIR}/generated/version.h @ONLY)
 

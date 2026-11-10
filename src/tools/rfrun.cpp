@@ -1,4 +1,5 @@
 // rfrun: RadiantFighter without a window, for tests (developer tool, not shipped).
+#include "rf/options.h"
 // Usage: rfrun <folder with Disk.1-4> <frames> [--shot N file.png]... [--key N hexcode] [--joy N bits length]
 //              [--custom1 N] [--wav file] [--dump N file] [--state N file]
 // joystick bits (port 2): 1 up, 2 down, 4 left, 8 right, 16 fire; --joy1 for port 1 (set as joystick).
@@ -113,6 +114,7 @@ int main(int argc, char** argv) {
         for (int p = 0; p < 2; ++p)
             m.setPortJoystick(p, bits[p] & 1, bits[p] & 2, bits[p] & 4, bits[p] & 8, bits[p] & 16);
         m.runFrame();
+        if (std::getenv("RF_LOG_INTRO") && f % 100 == 0) std::fprintf(stderr, "intro %d %d\n", f, int(rf::introRunning()));
         if (std::getenv("RF_AUDLOG") && f % 25 == 0) {
             double e = 0; for (int16_t v : m.audioOut()) e += double(v) * v;
             std::fprintf(stderr, "AUD frame %d paula rms %.0f music#%d\n", f, m.audioOut().empty() ? 0.0 : std::sqrt(e / double(m.audioOut().size())), int(m.peek16(0x8CEAC)));

@@ -86,6 +86,14 @@ void InputPorts::setDefaults() {
     choice_[1] = joy != all.end() ? *joy : PortChoice{DeviceKind::Keyboard, {}, 0};
 }
 
+void InputPorts::setDefaultsTwoPlayers(int player1Port) {
+    const int p1 = player1Port & 1, p2 = p1 ^ 1;
+    std::vector<PortChoice> joys;
+    for (const PortChoice& c : choices()) if (c.kind == DeviceKind::Joystick) joys.push_back(c);
+    choice_[p1] = !joys.empty() ? joys[0] : PortChoice{DeviceKind::Keyboard, {}, 0};
+    choice_[p2] = joys.size() > 1 ? joys[1] : !joys.empty() ? PortChoice{DeviceKind::Keyboard, {}, 0} : PortChoice{DeviceKind::None, {}, 0};
+}
+
 std::vector<PortChoice> InputPorts::choices() const {
     std::vector<PortChoice> v = {{DeviceKind::None, {}, 0}, {DeviceKind::Keyboard, {}, 0}, {DeviceKind::Mouse, {}, 0}};
     for (size_t i = 0; i < pads_.size(); ++i) {

@@ -24,9 +24,11 @@ add_library(amigacore STATIC
   src/formats/adf.cpp src/formats/hunk.cpp src/formats/rnc1.cpp src/formats/epf.cpp
   src/formats/ilbm.cpp src/formats/planar.cpp src/formats/palette.cpp
   src/platform/sha256.cpp src/platform/png_write.cpp
+  src/platform/picture.cpp
   src/ui/options_panel.cpp)
 target_include_directories(amigacore PUBLIC src)
-target_link_libraries(amigacore PUBLIC amigacore_moira)
+find_package(Threads REQUIRED)
+target_link_libraries(amigacore PUBLIC amigacore_moira Threads::Threads)
 
 if(AMIGACORE_SDL)
   find_package(SDL2 CONFIG REQUIRED)
@@ -42,6 +44,9 @@ if(AMIGACORE_TESTS)
   # chipset tests: OCS framebuffer unchanged (SHA-256), AGA registers against independently computed pixels
   add_executable(amigacore_ocs_regress tests/ocs_regress.cpp)
   target_link_libraries(amigacore_ocs_regress PRIVATE amigacore)
+  # picture modes: coverage and scanline regularity on simulated screens (1080p, 1440p, 4K, 720p)
+  add_executable(amigacore_picture_check tests/picture_check.cpp)
+  target_link_libraries(amigacore_picture_check PRIVATE amigacore)
   add_executable(amigacore_aga_selftest tests/aga_selftest.cpp)
   target_link_libraries(amigacore_aga_selftest PRIVATE amigacore)
 endif()
